@@ -22,7 +22,7 @@
 
         .glass {
             background: rgba(15, 23, 42, 0.6);
-            backdrop-filter: blur(12px);
+            /* backdrop-filter: blur(12px); */
             border: 1px solid rgba(51, 65, 85, 0.5);
         }
 
@@ -310,7 +310,6 @@
 
     <script>
         let myChart = null;
-
         function setLoader(show, text = "Menghitung Probabilitas Karsinogenik...") {
             const overlay = document.getElementById('loadingOverlay');
             const status = document.getElementById('loadingStatus');
@@ -328,11 +327,10 @@
             const isJson = mode === 'json';
             document.getElementById('section-json').classList.toggle('hidden', !isJson);
             document.getElementById('section-csv').classList.toggle('hidden', isJson);
-
             document.getElementById('tab-json').className = isJson ?
                 "px-8 py-2.5 rounded-xl text-[11px] font-black bg-sky-600 text-white shadow-lg shadow-sky-900/40 tracking-widest" :
                 "px-8 py-2.5 rounded-xl text-[11px] font-black text-slate-400 tracking-widest";
-
+                
             document.getElementById('tab-csv').className = !isJson ?
                 "px-8 py-2.5 rounded-xl text-[11px] font-black bg-sky-600 text-white shadow-lg shadow-sky-900/40 tracking-widest" :
                 "px-8 py-2.5 rounded-xl text-[11px] font-black text-slate-400 tracking-widest";
