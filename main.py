@@ -33,7 +33,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ── Helper validasi ───────────────────────────────────────────────────────────
+# Helper validasi
 ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/jpg", "image/png"}
 
 def validate_image(file: UploadFile):
@@ -50,7 +50,7 @@ def validate_csv(file: UploadFile):
             detail="File harus berupa CSV."
         )
 
-# ── Model Loader (Singleton) ──────────────────────────────────────────────────
+# Model Loader (Singleton)
 class ModelLoader:
     _instance = None
 
@@ -90,7 +90,7 @@ class ModelLoader:
 
 models = ModelLoader()
 
-# ── Pydantic Schema ───────────────────────────────────────────────────────────
+# Pydantic Schema 
 class CancerInput(BaseModel):
     mean_radius: float; mean_texture: float; mean_perimeter: float; mean_area: float; mean_smoothness: float
     mean_compactness: float; mean_concavity: float; mean_concave_points: float; mean_symmetry: float; mean_fractal_dimension: float
@@ -99,7 +99,7 @@ class CancerInput(BaseModel):
     worst_radius: float; worst_texture: float; worst_perimeter: float; worst_area: float; worst_smoothness: float
     worst_compactness: float; worst_concavity: float; worst_concave_points: float; worst_symmetry: float; worst_fractal_dimension: float
 
-# ── Endpoints ─────────────────────────────────────────────────────────────────
+# Endpoints
 
 @app.get("/")
 def home():
@@ -281,7 +281,7 @@ async def predict_visual(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=f"Error visualisasi YOLO: {str(e)}")
 
 
-# ── Entry Point ───────────────────────────────────────────────────────────────
+# Entry Point
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", 8000))
