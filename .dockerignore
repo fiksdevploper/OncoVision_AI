@@ -1,9 +1,0 @@
-__pycache__
-.idea
-.vscode
-*.pyc
-*.pyo
-.env
-data/
-python_notebook/
-README.md
