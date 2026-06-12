@@ -15,7 +15,6 @@ from tensorflow.keras.layers import Dense, GlobalAveragePooling2D, Dropout, Inpu
 from tensorflow.keras.models import Sequential
 from tensorflow.keras import regularizers
 from tensorflow.keras.preprocessing.image import img_to_array
-import random
 
 # Optimasi untuk Server
 tf.config.set_soft_device_placement(True)
@@ -35,6 +34,7 @@ app.add_middleware(
 
 # Helper validasi
 ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/jpg", "image/png"}
+MAX_FILE_SIZE = 5 * 1024 * 1024  # ✨ [OPTIMASI] Batas ukuran file 5MB
 
 def validate_image(file: UploadFile):
     if file.content_type not in ALLOWED_IMAGE_TYPES:
@@ -57,6 +57,18 @@ class ModelLoader:
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super(ModelLoader, cls).__new__(cls)
+
+            # ✨ [OPTIMASI] Validasi File Model sebelum di-load
+            required_files = [
+                "kangker_model_machine-learning.joblib",
+                "model_klasifikasi_gambar.weights.h5",
+                "best_model.pt"
+            ]
+            for file_name in required_files:
+                if not os.path.exists(file_name):
+                    print(f"❌ ERROR KRITIKAL: File model '{file_name}' tidak ditemukan di direktori!")
+                    # Catatan: Kita biarkan app tetap berjalan (tidak raise Exception) 
+                    # agar bisa melihat log error dengan jelas di Hugging Face.
 
             # 1. Load ML tabular (Cancer)
             cls._instance.model_cancer, cls._instance.scaler_cancer = joblib.load(
@@ -100,16 +112,13 @@ class CancerInput(BaseModel):
     worst_compactness: float; worst_concavity: float; worst_concave_points: float; worst_symmetry: float; worst_fractal_dimension: float
 
 # Endpoints
-
 @app.get("/")
 def home():
     return {"message": "Oncovision AI API is ready."}
 
-# Health check — dipakai Railway untuk ngecek app sudah ready
 @app.get("/health")
 def health():
     return {"status": "ok"}
-
 
 # 1. Prediksi MRI Brain (Gambar)
 @app.post("/predict-image")
@@ -117,6 +126,11 @@ async def predict_image(file: UploadFile = File(...)):
     validate_image(file)
     try:
         contents = await file.read()
+        
+        # ✨ [OPTIMASI] Cek ukuran file gambar
+        if len(contents) > MAX_FILE_SIZE:
+            raise HTTPException(status_code=413, detail="Ukuran file maksimal adalah 5MB.")
+
         with Image.open(io.BytesIO(contents)).convert('RGB') as img:
             img = img.resize((150, 150))
             img_array = img_to_array(img) / 255.0
@@ -161,7 +175,6 @@ async def predict_csv(file: UploadFile = File(...)):
         features_df = df.drop(columns=cols_to_drop)
         features_df.columns = [c.replace('_', ' ') for c in features_df.columns]
 
-        # Validasi kolom CSV sebelum proses
         missing = [c for c in expected_columns if c not in features_df.columns]
         if missing:
             raise HTTPException(
@@ -173,16 +186,20 @@ async def predict_csv(file: UploadFile = File(...)):
         scaled_data = models.scaler_cancer.transform(features_df)
         predictions = models.model_cancer.predict(scaled_data)
 
+        # ✨ [OPTIMASI] Hapus fake random confidence
         try:
             probs = models.model_cancer.predict_proba(scaled_data)
             confidences = [round(max(p) * 100, 2) for p in probs]
         except AttributeError:
-            confidences = [round(random.uniform(85.0, 99.5), 2) for _ in predictions]
+            confidences = [None for _ in predictions]
 
         results = []
         for i, pred in enumerate(predictions):
             label = "Benign" if (str(pred).upper() == 'B' or pred == 1) else "Malignant"
-            results.append({"prediction": label, "confidence": f"{confidences[i]}%"})
+            
+            # ✨ [OPTIMASI] Tangani jika confidence tidak tersedia (None)
+            conf_str = f"{confidences[i]}%" if confidences[i] is not None else "N/A"
+            results.append({"prediction": label, "confidence": conf_str})
 
         return {"total_rows": len(results), "predictions": results}
 
@@ -212,17 +229,26 @@ async def predict_cancer(data: CancerInput):
         scaled = models.scaler_cancer.transform(input_data)
         pred = models.model_cancer.predict(scaled)[0]
 
+        # ✨ [OPTIMASI] Tambahkan perhitungan confidence untuk data tunggal
+        try:
+            probs = models.model_cancer.predict_proba(scaled)[0]
+            confidence = round(max(probs) * 100, 2)
+            confidence_str = f"{confidence}%"
+        except AttributeError:
+            confidence_str = "N/A"
+
         if isinstance(pred, str):
             result = "Benign" if pred.upper() == 'B' else "Malignant"
         else:
             result = "Benign" if pred == 1 else "Malignant"
 
-        return {"result": result}
+        # ✨ [OPTIMASI] Kembalikan juga nilai confidence
+        return {"result": result, "confidence": confidence_str}
+        
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error prediksi kanker: {str(e)}")
-
 
 # 4. YOLO - Deteksi Objek (JSON)
 @app.post("/predict")
@@ -230,6 +256,11 @@ async def predict(file: UploadFile = File(...)):
     validate_image(file)
     try:
         contents = await file.read()
+        
+        # ✨ [OPTIMASI] Cek ukuran file gambar
+        if len(contents) > MAX_FILE_SIZE:
+            raise HTTPException(status_code=413, detail="Ukuran file maksimal adalah 5MB.")
+
         nparr = np.frombuffer(contents, np.uint8)
         img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
@@ -263,6 +294,11 @@ async def predict_visual(file: UploadFile = File(...)):
     validate_image(file)
     try:
         contents = await file.read()
+        
+        # ✨ [OPTIMASI] Cek ukuran file gambar
+        if len(contents) > MAX_FILE_SIZE:
+            raise HTTPException(status_code=413, detail="Ukuran file maksimal adalah 5MB.")
+
         nparr = np.frombuffer(contents, np.uint8)
         img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
@@ -279,7 +315,6 @@ async def predict_visual(file: UploadFile = File(...)):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error visualisasi YOLO: {str(e)}")
-
 
 # Entry Point
 if __name__ == "__main__":
