@@ -58,7 +58,7 @@ class ModelLoader:
         if cls._instance is None:
             cls._instance = super(ModelLoader, cls).__new__(cls)
 
-            # ✨ [OPTIMASI] Validasi File Model sebelum di-load
+            # Validasi File Model sebelum di-load
             required_files = [
                 "kangker_model_machine-learning.joblib",
                 "model_klasifikasi_gambar.weights.h5",
@@ -250,6 +250,7 @@ async def predict_cancer(data: CancerInput):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error prediksi kanker: {str(e)}")
 
+
 # 4. YOLO - Deteksi Objek (JSON)
 @app.post("/predict")
 async def predict(file: UploadFile = File(...)):
@@ -286,7 +287,6 @@ async def predict(file: UploadFile = File(...)):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error deteksi YOLO: {str(e)}")
-
 
 # 5. YOLO - Visual Bounding Box (Gambar)
 @app.post("/predict_visual")
